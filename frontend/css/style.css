@@ -1,0 +1,39 @@
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f172a; 
+}
+
+::-webkit-scrollbar-thumb {
+    background: #334155; 
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #475569; 
+}
+
+/* Heatmap blocks */
+.heat-block {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background-color: #1e293b;
+    transition: transform 0.1s;
+}
+
+.heat-block:hover {
+    transform: scale(1.2);
+    z-index: 10;
+}
+
+.heat-0 { background-color: #1e293b; } /* slate-800 */
+.heat-1 { background-color: #1e3a8a; } /* blue-900 */
+.heat-2 { background-color: #1d4ed8; } /* blue-700 */
+.heat-3 { background-color: #2563eb; } /* blue-600 */
+.heat-4 { background-color: #3b82f6; } /* blue-500 */
+.heat-5 { background-color: #60a5fa; } /* blue-400 */

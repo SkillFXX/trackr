@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trackr</title>
+    <!-- Local Libs -->
+    <script src="libs/tailwindcss.js"></script>
+    <script src="libs/chart.min.js"></script>
+    <script src="libs/lucide.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Tailwind config for custom colors -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        darkBg: '#0f172a',
+                        darkCard: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-darkBg text-slate-200 font-sans h-screen flex overflow-hidden selection:bg-primary selection:text-white">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-darkCard border-r border-slate-700 flex flex-col justify-between transition-all">
+        <div>
+            <div class="h-16 flex items-center px-6 border-b border-slate-700">
+                <i data-lucide="activity" class="text-primary w-6 h-6 mr-3"></i>
+                <h1 class="text-xl font-bold tracking-tight text-white">Trackr</h1>
+            </div>
+            <nav class="p-4 space-y-2">
+                <a href="#" onclick="app.navigate('dashboard')" id="nav-dashboard" class="flex items-center px-4 py-3 rounded-lg bg-primary/10 text-primary transition-colors">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
+                </a>
+                <a href="#" onclick="app.navigate('applications')" id="nav-applications" class="flex items-center px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                    <i data-lucide="list" class="w-5 h-5 mr-3"></i> Applications
+                </a>
+                <a href="#" onclick="app.navigate('settings')" id="nav-settings" class="flex items-center px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5 mr-3"></i> Paramètres
+                </a>
+            </nav>
+        </div>
+        <div class="p-4">
+            <button onclick="app.exportData()" class="w-full flex justify-center items-center px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg transition-colors">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Exporter
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <!-- Header -->
+        <header class="h-16 flex items-center justify-between px-8 border-b border-slate-700 bg-darkCard/50 backdrop-blur-sm">
+            <h2 id="page-title" class="text-lg font-semibold text-white">Dashboard</h2>
+            <div class="flex items-center space-x-4">
+                <select id="period-selector" onchange="app.changePeriod(this.value)" class="bg-slate-800 border border-slate-600 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:border-primary">
+                    <option value="today">Aujourd'hui</option>
+                    <option value="week">Cette semaine</option>
+                    <option value="month">Ce mois-ci</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Loader -->
+        <div id="loader" class="absolute inset-0 bg-darkBg/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+            <i data-lucide="loader-2" class="w-10 h-10 text-primary animate-spin"></i>
+        </div>
+
+        <!-- View: Dashboard -->
+        <div id="view-dashboard" class="page-view flex-1 overflow-y-auto p-8 space-y-8">
+            <!-- KPIs -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-slate-400 font-medium">Temps Actif</h3>
+                        <div class="p-2 bg-primary/20 rounded-lg"><i data-lucide="clock" class="text-primary w-5 h-5"></i></div>
+                    </div>
+                    <p id="kpi-active" class="text-3xl font-bold text-white">0h 0m</p>
+                </div>
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-slate-400 font-medium">Temps Inactif</h3>
+                        <div class="p-2 bg-slate-700 rounded-lg"><i data-lucide="coffee" class="text-slate-300 w-5 h-5"></i></div>
+                    </div>
+                    <p id="kpi-idle" class="text-3xl font-bold text-white">0h 0m</p>
+                </div>
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-slate-400 font-medium">App Principale</h3>
+                        <div class="p-2 bg-indigo-500/20 rounded-lg"><i data-lucide="trophy" class="text-indigo-400 w-5 h-5"></i></div>
+                    </div>
+                    <p id="kpi-top-app" class="text-2xl font-bold text-white truncate">-</p>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm lg:col-span-2">
+                    <h3 class="text-slate-400 font-medium mb-4">Activité de la journée</h3>
+                    <div class="h-64 relative w-full">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                    <h3 class="text-slate-400 font-medium mb-4">Top 5 Applications</h3>
+                    <div class="space-y-4" id="top-apps-list">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Heatmap -->
+            <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                <h3 class="text-slate-400 font-medium mb-4">Intensité (Semaine)</h3>
+                <div class="overflow-x-auto">
+                    <div id="heatmap-container" class="min-w-max flex flex-col gap-1">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Applications -->
+        <div id="view-applications" class="page-view flex-1 overflow-y-auto p-8 hidden">
+            <div class="bg-darkCard rounded-xl border border-slate-700/50 shadow-sm overflow-hidden">
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="text-xs uppercase bg-slate-800 text-slate-400 border-b border-slate-700">
+                        <tr>
+                            <th scope="col" class="px-6 py-4">Application</th>
+                            <th scope="col" class="px-6 py-4">Catégorie</th>
+                            <th scope="col" class="px-6 py-4">Temps d'utilisation</th>
+                            <th scope="col" class="px-6 py-4">%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="all-apps-table">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- View: Settings -->
+        <div id="view-settings" class="page-view flex-1 overflow-y-auto p-8 hidden">
+            <div class="max-w-3xl space-y-8">
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                    <h3 class="text-lg font-medium text-white mb-6 border-b border-slate-700 pb-2">Général</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-slate-200">Démarrer avec Windows</h4>
+                                <p class="text-xs text-slate-400">Lancer Code Trackr automatiquement au démarrage</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="setting-startup" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-slate-200">Délai d'inactivité (secondes)</h4>
+                                <p class="text-xs text-slate-400">Temps avant de considérer l'utilisateur inactif</p>
+                            </div>
+                            <input type="number" id="setting-idle" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-slate-200">Rétention des données (jours)</h4>
+                                <p class="text-xs text-slate-400">Durée de conservation des logs bruts</p>
+                            </div>
+                            <input type="number" id="setting-retention" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                    <h3 class="text-lg font-medium text-white mb-6 border-b border-slate-700 pb-2">Catégories d'applications</h3>
+                    <p class="text-sm text-slate-400 mb-4">Modifiez le JSON ci-dessous pour configurer vos catégories. Utilisez le nom de l'exécutable (sans .exe).</p>
+                    <textarea id="setting-categories" class="w-full h-64 bg-slate-900 border border-slate-600 rounded-lg p-4 font-mono text-sm focus:outline-none focus:border-primary" spellcheck="false"></textarea>
+                </div>
+
+                <div class="flex justify-end">
+                    <button onclick="app.saveSettings()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white font-medium rounded-lg transition-colors">
+                        Enregistrer les modifications
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
