@@ -73,22 +73,28 @@ class Tracker:
         self.last_check_time = time.time()
         
         while self.running:
+            # Update interval dynamically
+            self.interval = config.get("refresh_interval", 5)
             time.sleep(self.interval)
             
             now = time.time()
             elapsed = int(now - self.last_check_time)
             self.last_check_time = now
             
-            idle_time = self._get_idle_time()
-            max_idle = config.get("idle_timeout", 300)
-            
             app_name, window_title, is_fullscreen = self._get_active_window_info()
             
             status = 'active'
-            if idle_time > max_idle:
-                status = 'idle'
-            elif is_fullscreen:
+            
+            # Fullscreen detection toggle
+            if config.get("detect_fullscreen", True) and is_fullscreen:
                 status = 'fullscreen'
+                
+            # Idle detection toggle (Overrides fullscreen if idle)
+            if config.get("detect_idle", True):
+                idle_time = self._get_idle_time()
+                max_idle = config.get("idle_timeout", 300)
+                if idle_time > max_idle:
+                    status = 'idle'
                 
             # Log the time
             db.insert_log(app_name, window_title, status, elapsed)

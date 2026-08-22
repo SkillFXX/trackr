@@ -177,7 +177,10 @@ class App {
         try {
             const settings = await window.pywebview.api.get_settings();
             document.getElementById('setting-startup').checked = settings.startup;
-            document.getElementById('setting-idle').value = settings.idle_timeout;
+            document.getElementById('setting-refresh-interval').value = settings.refresh_interval || 5;
+            document.getElementById('setting-detect-idle').checked = settings.detect_idle !== false;
+            document.getElementById('setting-idle-timeout').value = settings.idle_timeout;
+            document.getElementById('setting-detect-fullscreen').checked = settings.detect_fullscreen !== false;
             document.getElementById('setting-retention').value = settings.retention_days;
             document.getElementById('setting-categories').value = JSON.stringify(settings.categories, null, 4);
         } catch (e) {
@@ -201,7 +204,10 @@ class App {
 
             const newSettings = {
                 startup: document.getElementById('setting-startup').checked,
-                idle_timeout: parseInt(document.getElementById('setting-idle').value) || 300,
+                refresh_interval: parseInt(document.getElementById('setting-refresh-interval').value) || 5,
+                detect_idle: document.getElementById('setting-detect-idle').checked,
+                idle_timeout: parseInt(document.getElementById('setting-idle-timeout').value) || 300,
+                detect_fullscreen: document.getElementById('setting-detect-fullscreen').checked,
                 retention_days: parseInt(document.getElementById('setting-retention').value) || 30,
                 categories: catObj
             };

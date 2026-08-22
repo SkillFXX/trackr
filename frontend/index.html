@@ -31,10 +31,7 @@
     <!-- Sidebar -->
     <aside class="w-64 bg-darkCard border-r border-slate-700 flex flex-col justify-between transition-all">
         <div>
-            <div class="h-16 flex items-center px-6 border-b border-slate-700">
-                <i data-lucide="activity" class="text-primary w-6 h-6 mr-3"></i>
-                <h1 class="text-xl font-bold tracking-tight text-white">Trackr</h1>
-            </div>
+
             <nav class="p-4 space-y-2">
                 <a href="#" onclick="app.navigate('dashboard')" id="nav-dashboard" class="flex items-center px-4 py-3 rounded-lg bg-primary/10 text-primary transition-colors">
                     <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
@@ -166,10 +163,40 @@
                         
                         <div class="flex items-center justify-between">
                             <div>
+                                <h4 class="text-slate-200">Intervalle d'actualisation (secondes)</h4>
+                                <p class="text-xs text-slate-400">Fréquence de vérification de l'activité</p>
+                            </div>
+                            <input type="number" id="setting-refresh-interval" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-slate-200">Activer la détection d'inactivité</h4>
+                                <p class="text-xs text-slate-400">Détecter l'absence de mouvements de souris / clavier</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="setting-detect-idle" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
                                 <h4 class="text-slate-200">Délai d'inactivité (secondes)</h4>
                                 <p class="text-xs text-slate-400">Temps avant de considérer l'utilisateur inactif</p>
                             </div>
-                            <input type="number" id="setting-idle" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                            <input type="number" id="setting-idle-timeout" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-slate-200">Détecter le mode Plein écran</h4>
+                                <p class="text-xs text-slate-400">Différencier une application maximisée (ex: jeu, vidéo)</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="setting-detect-fullscreen" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                            </label>
                         </div>
 
                         <div class="flex items-center justify-between">

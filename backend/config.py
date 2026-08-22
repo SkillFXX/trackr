@@ -12,6 +12,9 @@ DEFAULT_CONFIG = {
     "startup": True,
     "idle_timeout": 300, # 5 minutes
     "retention_days": 30,
+    "refresh_interval": 5,
+    "detect_idle": True,
+    "detect_fullscreen": True,
     "categories": {
         "Development": ["code", "devenv", "idea", "pycharm", "webstorm", "git", "cmd", "powershell", "WindowsTerminal"],
         "Web": ["chrome", "firefox", "msedge", "brave", "opera"],
@@ -84,7 +87,12 @@ class ConfigManager:
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS)
             if enable:
-                winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, f'{app_path} --hidden')
+                # Wrap app_path in quotes in case it contains spaces
+                if getattr(sys, 'frozen', False):
+                    cmd = f'"{app_path}" --hidden'
+                else:
+                    cmd = f'{app_path} --hidden'
+                winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, cmd)
             else:
                 try:
                     winreg.DeleteValue(key, app_name)

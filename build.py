@@ -17,6 +17,7 @@ if __name__ == '__main__':
     PyInstaller.__main__.run([
         'run.py',
         '--name=Trackr',
+        '--onefile',
         '--windowed',
         '--noconsole',
         '--icon=frontend/assets/icon.ico',
