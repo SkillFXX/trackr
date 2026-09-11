@@ -16,17 +16,64 @@ DEFAULT_CONFIG = {
     "detect_idle": True,
     "detect_fullscreen": True,
     "categories": {
-        "Development": ["code", "devenv", "idea", "pycharm", "webstorm", "git", "cmd", "powershell", "WindowsTerminal"],
-        "Web": ["chrome", "firefox", "msedge", "brave", "opera"],
-        "Communication": ["discord", "slack", "teams", "skype", "telegram", "whatsapp"],
-        "Jeux": ["steam", "epicgameslauncher", "riotclient", "val", "csgo"],
-        "Productivité": ["winword", "excel", "powerpnt", "notion", "obsidian"]
-    }
+        "Développement": [
+            "code", "devenv", "idea", "pycharm", "webstorm", "clion", "rider", "datagrip",
+            "visualstudio", "sublime_text", "notepad++", "cursor", "antigravity", "git",
+            "githubdesktop", "cmd", "powershell", "windowsterminal", "bash", "wsl", "docker",
+            "postman", "dbeaver", "pgadmin", "insomnia", "figma", "unity", "unreal"
+        ],
+        "Navigation Web": [
+            "chrome", "firefox", "msedge", "brave", "opera", "vivaldi", "arc", "safari", "tor"
+        ],
+        "Jeux": [
+            "steam", "steamwebhelper", "epicgameslauncher", "riotclient", "riotclientux",
+            "val", "csgo", "cs2", "cod", "cod23-cod", "minecraft", "roblox", "overwatch",
+            "apex", "genshin", "littlebigworkshop", "how to fish", "battle.net", "gta5",
+            "rdr2", "cyberpunk2077", "ea", "origin", "ubisoftconnect", "galaxyclient"
+        ],
+        "Communication": [
+            "discord", "slack", "teams", "skype", "telegram", "whatsapp", "signal",
+            "thunderbird", "outlook", "messenger", "zoom"
+        ],
+        "Productivité": [
+            "winword", "excel", "powerpnt", "notion", "obsidian", "acrobat", "acrord32",
+            "reader", "onenote", "evernote", "todoist", "libreoffice", "calc", "writer"
+        ],
+        "Multimédia & Musique": [
+            "spotify", "vlc", "netflix", "itunes", "deezer", "foobar2000", "youtube",
+            "potplayer", "mediaplayer", "audacity"
+        ],
+        "Création & Design": [
+            "photoshop", "illustrator", "premiere", "afterfx", "lightroom", "indesign",
+            "blender", "canva", "gimp", "inkscape", "cinema4d", "davinci"
+        ],
+        "Système & Utilitaires": [
+            "explorer", "taskmgr", "mmc", "regedit", "systemsettings", "control",
+            "7zfm", "winrar", "notepad", "calculator"
+        ]
+    },
+    "app_overrides": {}
+}
+
+# Mapping of categories to productivity types
+PRODUCTIVITY_MAP = {
+    "Développement": "productive",
+    "Productivité": "productive",
+    "Création & Design": "productive",
+    "Development": "productive",
+    "Jeux": "entertainment",
+    "Multimédia & Musique": "entertainment",
+    "Communication": "communication",
+    "Navigation Web": "neutral",
+    "Web": "neutral",
+    "Système & Utilitaires": "neutral",
+    "Non catégorisé": "neutral",
+    "Inconnu": "neutral"
 }
 
 class ConfigManager:
     def __init__(self):
-        self.config = DEFAULT_CONFIG.copy()
+        self.config = json.loads(json.dumps(DEFAULT_CONFIG))
         self._ensure_app_data_dir()
         self.load()
 
@@ -39,7 +86,37 @@ class ConfigManager:
             try:
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     user_config = json.load(f)
-                    self.config.update(user_config)
+                    
+                # Merge base settings
+                for k, v in user_config.items():
+                    if k != "categories":
+                        self.config[k] = v
+                        
+                # Merge categories intelligently (do not wipe default categories)
+                if "categories" in user_config and isinstance(user_config["categories"], dict):
+                    # Handle migration from older english names if needed
+                    cats = user_config["categories"]
+                    if "Development" in cats and "Développement" not in cats:
+                        cats["Développement"] = cats.pop("Development")
+                    if "Web" in cats and "Navigation Web" not in cats:
+                        cats["Navigation Web"] = cats.pop("Web")
+                        
+                    for cat, apps in DEFAULT_CONFIG["categories"].items():
+                        if cat not in cats:
+                            cats[cat] = apps
+                        else:
+                            # Add missing default apps without duplicates
+                            existing_lower = [a.lower() for a in cats[cat]]
+                            for app in apps:
+                                if app.lower() not in existing_lower:
+                                    cats[cat].append(app)
+                    self.config["categories"] = cats
+                else:
+                    self.config["categories"] = DEFAULT_CONFIG["categories"].copy()
+                    
+                if "app_overrides" not in self.config:
+                    self.config["app_overrides"] = {}
+                self.save()
             except Exception as e:
                 print(f"Error loading config: {e}")
         else:
@@ -62,11 +139,51 @@ class ConfigManager:
             self.toggle_startup(value)
 
     def get_category_for_app(self, app_name):
-        app_name_lower = app_name.lower().replace('.exe', '')
+        if not app_name or app_name.lower() == "unknown":
+            return "Inconnu"
+            
+        app_name_lower = app_name.lower().replace('.exe', '').strip()
+        
+        # 1. Check user overrides first
+        overrides = self.config.get("app_overrides", {})
+        for ov_key, ov_cat in overrides.items():
+            if ov_key.lower().replace('.exe', '').strip() == app_name_lower:
+                return ov_cat
+                
+        # 2. Match with categories:
+        # First check exact match
         for category, apps in self.config.get("categories", {}).items():
-            if any(app.lower() in app_name_lower for app in apps):
-                return category
+            for app in apps:
+                app_clean = app.lower().replace('.exe', '').strip()
+                if app_name_lower == app_clean:
+                    return category
+
+        # Second check substring / boundary match (avoiding short substrings matching inside longer words)
+        for category, apps in self.config.get("categories", {}).items():
+            for app in apps:
+                app_clean = app.lower().replace('.exe', '').strip()
+                if len(app_clean) >= 4 and app_clean in app_name_lower:
+                    # e.g. "epicgameslauncher", "antigravity", "spotify", "discord", "powershell"
+                    return category
+                elif len(app_clean) < 4:
+                    # For short tokens (e.g. 'val', 'git', 'cmd'), ensure word boundary or exact match
+                    import re
+                    if re.search(rf"(^|[^a-z0-9]){re.escape(app_clean)}([^a-z0-9]|$)", app_name_lower):
+                        return category
+                
         return "Non catégorisé"
+
+    def set_app_category(self, app_name, category):
+        if not app_name:
+            return
+        if "app_overrides" not in self.config:
+            self.config["app_overrides"] = {}
+        clean_name = app_name.strip()
+        self.config["app_overrides"][clean_name] = category
+        self.save()
+
+    def get_productivity_type(self, category):
+        return PRODUCTIVITY_MAP.get(category, "neutral")
 
     def toggle_startup(self, enable):
         """Enable or disable startup with Windows using the Registry."""
