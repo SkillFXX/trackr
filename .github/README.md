@@ -54,6 +54,27 @@ Si vous souhaitez modifier le code ou compiler vous-même l'application :
    ```
    *Un exécutable standalone (Trackr.exe) sera généré dans le dossier `dist/`.*
 
+### 📦 Version portable
+
+`Trackr.exe` est déjà une version portable : un seul fichier, sans installation ni droits administrateur. Il suffit de le copier où vous voulez (par exemple `C:\Outils\Trackr\Trackr.exe`) et de le lancer.
+
+- **Prérequis sur le PC cible** : Windows 10 ou 11 avec le runtime **Microsoft Edge WebView2**. Il est présent par défaut sur Windows 11 et sur les Windows 10 à jour. Sinon, il s'installe depuis le site de Microsoft.
+- **Où sont les données ?** L'exécutable est portable, mais pas les données. La configuration et la base (`config.json`, `trackr.db`) sont stockées dans `%APPDATA%\Trackr`, propre à chaque utilisateur Windows. Pour garder votre historique sur un autre PC, copiez ce dossier.
+- **Premier lancement** : Windows SmartScreen peut afficher un avertissement, car l'exécutable n'est pas signé. Cliquez sur « Informations complémentaires » puis « Exécuter quand même ».
+- Trackr démarre dans la zone de notification (près de l'horloge). Fermer la fenêtre la masque sans quitter l'application ; pour quitter, faites un clic droit sur l'icône puis « Quitter ».
+
+### 🔁 Démarrage automatique avec Windows
+
+L'option **« Démarrer avec Windows »** (Paramètres, activée par défaut) fonctionne aussi avec la version portable :
+
+- À chaque lancement, `Trackr.exe` enregistre son propre chemin dans la clé de registre utilisateur `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, avec l'option `--hidden`. Aucun droit administrateur n'est requis. À l'ouverture de session, Trackr démarre donc caché dans la zone de notification.
+- **Si vous déplacez l'exécutable**, l'ancien chemin n'est plus valide. Relancez `Trackr.exe` une fois depuis son nouvel emplacement : l'entrée de démarrage est mise à jour automatiquement.
+- **Sur une clé USB ou un disque amovible**, le démarrage automatique échoue si le disque n'est pas branché à l'ouverture de session. Préférez un dossier sur le disque interne.
+- Si Trackr a été désactivé dans *Paramètres Windows › Applications › Démarrage* (ou dans le Gestionnaire des tâches), Windows ignore l'entrée. La page Paramètres de Trackr le signale ; enregistrer avec l'option activée la réactive.
+- Pour désactiver le démarrage automatique, décochez l'option et enregistrez. L'entrée est alors supprimée du registre.
+
+> En mode développement (`python run.py`), l'entrée de démarrage n'est créée que si vous enregistrez les paramètres avec l'option activée. Elle lance alors `pythonw.exe run.py --hidden` depuis votre environnement virtuel.
+
 ## 🛠️ Stack Technique
 
 - **Backend** : Python, SQLite3, `pywin32` (WinAPI), `psutil`, `pystray`.
