@@ -3,6 +3,12 @@ class ChartManager {
         this.charts = {};
         Chart.defaults.color = '#94a3b8'; // slate-400
         Chart.defaults.font.family = 'Inter, system-ui, -apple-system, sans-serif';
+        this._defaultAnimation = Chart.defaults.animation;
+    }
+
+    // Disable animations for background refreshes (avoids charts "jumping" every minute)
+    setAnimated(animated) {
+        Chart.defaults.animation = animated ? this._defaultAnimation : false;
     }
 
     _destroyChart(id) {
@@ -31,9 +37,24 @@ class ChartManager {
             "Création & Design": "#f97316",   // orange-500
             "Système & Utilitaires": "#64748b",// slate-500
             "Non catégorisé": "#475569",       // slate-600
-            "Inconnu": "#334155"              // slate-700
+            "Inconnu": "#334155",             // slate-700
+            "Inactif": "#475569"
         };
-        return palette[categoryName] || "#3b82f6";
+        if (palette[categoryName]) return palette[categoryName];
+        // Stable colour for user-defined categories
+        const extra = ["#14b8a6", "#a855f7", "#eab308", "#ef4444", "#84cc16", "#0ea5e9", "#d946ef", "#f43f5e"];
+        let hash = 0;
+        for (const ch of String(categoryName)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+        return extra[hash % extra.length];
+    }
+
+    _durationAxis(unit = 'min') {
+        return {
+            beginAtZero: true,
+            grid: { color: '#334155' },
+            border: { display: false },
+            ticks: { callback: (val) => unit === 'h' ? `${+val.toFixed(1)}h` : `${val}m` }
+        };
     }
 
     // 1. Dashboard Timeline
@@ -435,5 +456,125 @@ class ChartManager {
         }
     }
 }
+
+Object.assign(ChartManager.prototype, {
+    // 7. Session length buckets (share of time)
+    renderSessionBuckets(canvasId, buckets) {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        this._destroyChart(canvasId);
+        if (!buckets) return;
+
+        const colors = ['#64748b', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#10b981'];
+        this.charts[canvasId] = new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: buckets.map(b => b.label),
+                datasets: [{
+                    data: buckets.map(b => b.percentage),
+                    backgroundColor: colors,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const b = buckets[ctx.dataIndex];
+                                return [`${b.percentage}% du temps (${b.formatted})`, `${b.count} session${b.count > 1 ? 's' : ''}`];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#334155' }, border: { display: false }, ticks: { callback: v => `${v}%` } },
+                    x: { grid: { display: false }, border: { display: false } }
+                }
+            }
+        });
+    },
+
+    // 8. Stacked daily evolution by category
+    renderCategoryEvolution(canvasId, evolution) {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        this._destroyChart(canvasId);
+        if (!evolution || !evolution.dates || evolution.dates.length === 0) return;
+
+        const labels = evolution.dates.map(d => {
+            const p = d.split('-');
+            return `${p[2]}/${p[1]}`;
+        });
+        const datasets = evolution.series.map(s => ({
+            label: s.category,
+            data: s.values.map(v => v / 3600),
+            backgroundColor: this.getCategoryColor(s.category),
+            borderRadius: 2,
+            stack: 'cat'
+        }));
+
+        this.charts[canvasId] = new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 }, color: '#cbd5e1' } },
+                    tooltip: {
+                        filter: (item) => item.raw > 0,
+                        itemSort: (a, b) => b.raw - a.raw,
+                        callbacks: {
+                            title: (items) => evolution.dates[items[0].dataIndex],
+                            label: (ctx) => ` ${ctx.dataset.label} : ${this._formatDurationTooltip(ctx.raw * 60)}`,
+                            footer: (items) => `Total : ${this._formatDurationTooltip(items.reduce((s, i) => s + i.raw, 0) * 60)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, border: { display: false } },
+                    y: { ...this._durationAxis('h'), stacked: true }
+                }
+            }
+        });
+    },
+
+    // 9. Generic bar chart in minutes (app details)
+    renderMinutesBars(canvasId, labels, seconds, color = '#3b82f6', titles = null) {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        this._destroyChart(canvasId);
+
+        this.charts[canvasId] = new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ data: seconds.map(s => s / 60), backgroundColor: color, borderRadius: 3 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => titles ? titles[items[0].dataIndex] : items[0].label,
+                            label: (ctx) => this._formatDurationTooltip(ctx.raw)
+                        }
+                    }
+                },
+                scales: {
+                    y: this._durationAxis('min'),
+                    x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true } }
+                }
+            }
+        });
+    }
+});
 
 window.charts = new ChartManager();

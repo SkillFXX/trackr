@@ -14,6 +14,10 @@ Trackr est votre compagnon de productivité. Il tourne discrètement en arrière
   - **Activité de la journée** : Frise chronologique heure par heure pour repérer vos pics de concentration.
   - **Top 5 Applications** : Classement détaillé de vos logiciels les plus chronophages avec leur durée exacte et pourcentage.
   - **Intensité (Semaine)** : Heatmap type "GitHub" montrant vos heures d'activité les plus intenses.
+  - **Évolution par catégorie** : temps quotidien empilé par catégorie, comparaison avec la période précédente.
+- 🕒 **Chronologie** : déroulé heure par heure de n'importe quelle journée, liste des sessions et fenêtres utilisées.
+- 🧠 **Sessions & concentration** : nombre et durée des sessions, plus longues sessions, temps concentré (sessions ≥ 25 min), changements d'application par heure, pauses, heures moyennes de début et de fin de journée.
+- 🔍 **Détail par application** : temps par jour et par heure, sessions, et titres de fenêtres les plus utilisés (sites, fichiers, projets...).
 - 🕵️ **100% Hors-Ligne & Léger** : Aucune donnée ne quitte votre PC. Tout est stocké dans une base SQLite locale. La détection d'activité utilise l'API native Windows (`GetLastInputInfo`) pour un impact nul sur le CPU.
 - ⚙️ **Configuration Flexible** :
   - Lancement automatique et silencieux (System Tray) avec Windows.

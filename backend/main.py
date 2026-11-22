@@ -8,12 +8,15 @@ import winerror
 import time
 import ctypes
 
-from .api import Api
+from .api import Api, set_window
 from .tracker import tracker
 from .tray import TrayIcon
 from .config import config, APP_DATA_DIR
 
 MUTEX_NAME = "Trackr_SingleInstance_Mutex"
+# Set by a second instance to ask the running one to show its window
+SHOW_EVENT_NAME = "Trackr_ShowWindow_Event"
+EVENT_MODIFY_STATE = 0x0002
 user32 = ctypes.windll.user32
 
 def bring_to_foreground(hwnd):
@@ -56,20 +59,40 @@ def check_single_instance():
         return False, None
     return True, mutex
 
+def signal_running_instance():
+    """Ask the already running instance to show its window."""
+    try:
+        event = win32event.OpenEvent(EVENT_MODIFY_STATE, False, SHOW_EVENT_NAME)
+        win32event.SetEvent(event)
+        # Allow the running instance (a different process) to take the foreground
+        user32.AllowSetForegroundWindow(-1)  # ASFW_ANY
+        return True
+    except Exception as e:
+        print(f"Failed to signal running instance: {e}")
+    try:
+        hwnd = user32.FindWindowW(None, "Trackr")
+        if hwnd and user32.IsWindow(hwnd):
+            bring_to_foreground(hwnd)
+            return True
+    except Exception as e:
+        print(f"Failed to focus existing window: {e}")
+    return False
+
+
 def main():
     # 1. Single instance check
     is_first_instance, mutex = check_single_instance()
     if not is_first_instance:
         print("Application is already running.")
-        try:
-            hwnd = user32.FindWindowW(None, "Trackr")
-            if hwnd and user32.IsWindow(hwnd):
-                bring_to_foreground(hwnd)
-        except Exception as e:
-            print(f"Failed to focus existing window: {e}")
+        signal_running_instance()
         sys.exit(0)
 
-    # 2. Start Tracker
+    show_event = win32event.CreateEvent(None, False, False, SHOW_EVENT_NAME)
+
+    # Keep the "start with Windows" registry entry in sync with the settings
+    config.sync_startup()
+
+    # 2. Start Tracker (also purges data older than the retention setting)
     tracker.start()
 
     # 3. Webview logic
@@ -83,7 +106,9 @@ def main():
     # To handle 'hidden' mode when starting with Windows
     hidden = "--hidden" in sys.argv
     
-    window = webview.create_window('Trackr', url=index_path, js_api=api, width=1024, height=768, hidden=hidden)
+    window = webview.create_window('Trackr', url=index_path, js_api=api, width=1280, height=820,
+                                   min_size=(960, 640), hidden=hidden)
+    set_window(window)
     
     _last_show_time = 0
     _show_lock = threading.Lock()
@@ -116,6 +141,20 @@ def main():
             except Exception as e:
                 print(f"Error bringing window to foreground: {e}")
 
+            # The page may have been loaded hours ago (hidden start with Windows):
+            # reload the data every time the window is shown.
+            try:
+                window.evaluate_js("window.app && window.app.onWindowShown && window.app.onWindowShown()")
+            except Exception as e:
+                print(f"Error refreshing data: {e}")
+
+    def wait_for_show_requests():
+        while True:
+            win32event.WaitForSingleObject(show_event, win32event.INFINITE)
+            on_show_window()
+
+    threading.Thread(target=wait_for_show_requests, daemon=True).start()
+
     def on_closing():
         window.hide()
         return False # Prevents the window from destroying the webview loop
@@ -132,11 +171,6 @@ def main():
     tray = TrayIcon(on_show_window, on_quit)
     tray.run()
     
-    # Check retention
-    retention_days = config.get("retention_days", 30)
-    from .db import db
-    db.purge_old_data(retention_days)
-
     # 5. Start Webview event loop (blocks until window is closed or app exits)
     webview.start(debug=False)
 

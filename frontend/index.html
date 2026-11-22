@@ -9,8 +9,7 @@
     <script src="libs/chart.min.js"></script>
     <script src="libs/lucide.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
-    
-    <!-- Tailwind config for custom colors -->
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -29,288 +28,352 @@
 <body class="bg-darkBg text-slate-200 font-sans h-screen flex overflow-hidden selection:bg-primary selection:text-white">
 
     <!-- Sidebar -->
-    <aside class="w-64 bg-darkCard border-r border-slate-700 flex flex-col justify-between transition-all">
+    <aside class="w-60 shrink-0 bg-darkCard border-r border-slate-700 flex flex-col justify-between">
         <div>
-
-            <nav class="p-4 space-y-2">
-                <a href="#" onclick="app.navigate('dashboard')" id="nav-dashboard" class="flex items-center px-4 py-3 rounded-lg bg-primary/10 text-primary transition-colors">
+            <div class="h-16 flex items-center px-6 border-b border-slate-700">
+                <div class="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center mr-3">
+                    <i data-lucide="activity" class="w-4 h-4 text-primary"></i>
+                </div>
+                <span class="text-lg font-bold text-white tracking-tight">Trackr</span>
+            </div>
+            <nav class="p-4 space-y-1">
+                <a href="#" onclick="app.navigate('dashboard'); return false;" id="nav-dashboard" class="nav-link">
                     <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Dashboard
                 </a>
-                <a href="#" onclick="app.navigate('analytics')" id="nav-analytics" class="flex items-center px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                <a href="#" onclick="app.navigate('timeline'); return false;" id="nav-timeline" class="nav-link">
+                    <i data-lucide="gantt-chart" class="w-5 h-5 mr-3"></i> Chronologie
+                </a>
+                <a href="#" onclick="app.navigate('analytics'); return false;" id="nav-analytics" class="nav-link">
                     <i data-lucide="bar-chart-2" class="w-5 h-5 mr-3"></i> Statistiques
                 </a>
-                <a href="#" onclick="app.navigate('applications')" id="nav-applications" class="flex items-center px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                <a href="#" onclick="app.navigate('applications'); return false;" id="nav-applications" class="nav-link">
                     <i data-lucide="list" class="w-5 h-5 mr-3"></i> Applications
                 </a>
-                <a href="#" onclick="app.navigate('settings')" id="nav-settings" class="flex items-center px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                <a href="#" onclick="app.navigate('settings'); return false;" id="nav-settings" class="nav-link">
                     <i data-lucide="settings" class="w-5 h-5 mr-3"></i> Paramètres
                 </a>
             </nav>
         </div>
-        <div class="p-4">
-            <button onclick="app.exportData()" class="w-full flex justify-center items-center px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg transition-colors">
-                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Exporter
+        <div class="p-4 space-y-3">
+            <p id="last-update" class="text-[11px] text-slate-500 text-center">-</p>
+            <button onclick="app.exportData()" class="w-full flex justify-center items-center px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i> Exporter (CSV)
             </button>
         </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <!-- Header -->
-        <header class="h-16 flex items-center justify-between px-8 border-b border-slate-700 bg-darkCard/50 backdrop-blur-sm">
+    <main class="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
+        <header class="h-16 shrink-0 flex items-center justify-between px-8 border-b border-slate-700 bg-darkCard/50 backdrop-blur-sm">
             <h2 id="page-title" class="text-lg font-semibold text-white">Dashboard</h2>
-            <div class="flex items-center space-x-4">
-                <select id="period-selector" onchange="app.changePeriod(this.value)" class="bg-slate-800 border border-slate-600 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:border-primary text-slate-200">
-                    <option value="today">Aujourd'hui</option>
-                    <option value="week" selected>Cette semaine (7 jours)</option>
-                    <option value="month">Ce mois-ci</option>
-                    <option value="year">Cette année</option>
-                    <option value="all">Tout l'historique</option>
-                </select>
+            <div class="flex items-center space-x-3">
+                <div id="period-controls" class="flex items-center space-x-3">
+                    <div id="custom-range" class="hidden items-center space-x-2 text-sm text-slate-400">
+                        <span>Du</span>
+                        <input type="date" id="custom-start" onchange="app.applyCustomRange()" class="select-dark">
+                        <span>au</span>
+                        <input type="date" id="custom-end" onchange="app.applyCustomRange()" class="select-dark">
+                    </div>
+                    <select id="period-selector" onchange="app.changePeriod(this.value)" class="select-dark">
+                        <option value="today">Aujourd'hui</option>
+                        <option value="week" selected>Cette semaine</option>
+                        <option value="month">Ce mois-ci</option>
+                        <option value="year">Cette année</option>
+                        <option value="all">Tout l'historique</option>
+                        <option value="custom">Personnalisé...</option>
+                    </select>
+                </div>
+                <button onclick="app.refreshData()" title="Actualiser" class="p-2 rounded-lg bg-slate-800 border border-slate-600 hover:border-primary text-slate-300">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
             </div>
         </header>
 
-        <!-- Loader -->
-        <div id="loader" class="absolute inset-0 bg-darkBg/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div id="loader" class="absolute inset-0 top-16 bg-darkBg/60 backdrop-blur-sm z-40 flex items-center justify-center hidden">
             <i data-lucide="loader-2" class="w-10 h-10 text-primary animate-spin"></i>
         </div>
 
-        <!-- View: Dashboard -->
-        <div id="view-dashboard" class="page-view flex-1 overflow-y-auto p-8 space-y-8">
-            <!-- KPIs -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm stat-card">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-slate-400 font-medium">Temps Actif</h3>
-                        <div class="p-2 bg-primary/20 rounded-lg"><i data-lucide="clock" class="text-primary w-5 h-5"></i></div>
+        <!-- ============================================================ DASHBOARD -->
+        <div id="view-dashboard" class="page-view flex-1 overflow-y-auto p-8 space-y-6">
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-5">
+                <div class="card stat-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="kpi-label">Temps actif</h3>
+                        <div class="kpi-icon bg-primary/20"><i data-lucide="clock" class="text-primary w-5 h-5"></i></div>
                     </div>
-                    <p id="kpi-active" class="text-3xl font-bold text-white">0h 0m</p>
+                    <p id="kpi-active" class="text-3xl font-bold text-white">-</p>
+                    <p id="kpi-active-delta" class="text-xs text-slate-400 mt-1.5">-</p>
                 </div>
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm stat-card">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-slate-400 font-medium">Temps Inactif</h3>
-                        <div class="p-2 bg-slate-700 rounded-lg"><i data-lucide="coffee" class="text-slate-300 w-5 h-5"></i></div>
+                <div class="card stat-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="kpi-label">Moyenne / jour</h3>
+                        <div class="kpi-icon bg-sky-500/20"><i data-lucide="calendar-days" class="text-sky-400 w-5 h-5"></i></div>
                     </div>
-                    <p id="kpi-idle" class="text-3xl font-bold text-white">0h 0m</p>
+                    <p id="kpi-daily-avg" class="text-3xl font-bold text-white">-</p>
+                    <p id="kpi-daily-avg-sub" class="text-xs text-slate-400 mt-1.5">-</p>
                 </div>
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm stat-card">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-slate-400 font-medium">App Principale</h3>
-                        <div class="p-2 bg-indigo-500/20 rounded-lg"><i data-lucide="trophy" class="text-indigo-400 w-5 h-5"></i></div>
+                <div class="card stat-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="kpi-label">Temps concentré</h3>
+                        <div class="kpi-icon bg-emerald-500/20"><i data-lucide="brain" class="text-emerald-400 w-5 h-5"></i></div>
+                    </div>
+                    <p id="kpi-deep-work" class="text-3xl font-bold text-white">-</p>
+                    <p id="kpi-deep-work-sub" class="text-xs text-slate-400 mt-1.5" title="Temps passé dans des sessions ininterrompues de 25 minutes ou plus">-</p>
+                </div>
+                <div class="card stat-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="kpi-label">App principale</h3>
+                        <div class="kpi-icon bg-indigo-500/20"><i data-lucide="trophy" class="text-indigo-400 w-5 h-5"></i></div>
                     </div>
                     <p id="kpi-top-app" class="text-2xl font-bold text-white truncate">-</p>
-                </div>
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm stat-card">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-slate-400 font-medium">Pic Horaire</h3>
-                        <div class="p-2 bg-amber-500/20 rounded-lg"><i data-lucide="flame" class="text-amber-400 w-5 h-5"></i></div>
-                    </div>
-                    <p id="kpi-peak-hour-dash" class="text-2xl font-bold text-white truncate">-</p>
+                    <p id="kpi-top-app-sub" class="text-xs text-slate-400 mt-1.5">-</p>
                 </div>
             </div>
 
-            <!-- Charts Row 1 -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm lg:col-span-2">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-slate-300 font-semibold flex items-center">
-                            <i data-lucide="activity" class="w-4 h-4 mr-2 text-primary"></i> Activité horaire (24h)
-                        </h3>
-                        <span class="text-xs text-slate-400">Le pic horaire apparaît en orange</span>
-                    </div>
-                    <div class="h-64 relative w-full">
-                        <canvas id="timelineChart"></canvas>
-                    </div>
+            <div class="grid grid-cols-2 xl:grid-cols-5 gap-4">
+                <div class="mini-stat">
+                    <i data-lucide="layers" class="w-4 h-4 text-violet-400"></i>
+                    <div><p class="mini-label">Sessions</p><p id="mini-sessions" class="mini-value">-</p></div>
                 </div>
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
-                    <h3 class="text-slate-300 font-semibold mb-4 flex items-center">
-                        <i data-lucide="medal" class="w-4 h-4 mr-2 text-indigo-400"></i> Top 5 Applications
-                    </h3>
-                    <div class="space-y-4" id="top-apps-list">
-                        <!-- Populated via JS -->
-                    </div>
+                <div class="mini-stat">
+                    <i data-lucide="timer" class="w-4 h-4 text-sky-400"></i>
+                    <div><p class="mini-label">Session moyenne</p><p id="mini-avg-session" class="mini-value">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="medal" class="w-4 h-4 text-amber-400"></i>
+                    <div class="min-w-0"><p class="mini-label">Plus longue session</p><p id="mini-longest" class="mini-value truncate">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="shuffle" class="w-4 h-4 text-rose-400"></i>
+                    <div><p class="mini-label">Changements d'app / h</p><p id="mini-switches" class="mini-value">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="sunrise" class="w-4 h-4 text-orange-400"></i>
+                    <div><p class="mini-label" id="mini-rhythm-label">Début → fin (moy.)</p><p id="mini-rhythm" class="mini-value">-</p></div>
                 </div>
             </div>
 
-            <!-- Heatmap & Categories Preview -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm lg:col-span-2">
-                    <h3 class="text-slate-300 font-semibold mb-4 flex items-center">
-                        <i data-lucide="grid" class="w-4 h-4 mr-2 text-blue-400"></i> Intensité (Semaine)
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <div id="heatmap-container" class="min-w-max flex flex-col gap-1">
-                            <!-- Populated via JS -->
-                        </div>
+                <div class="card lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="card-title"><i data-lucide="activity" class="w-4 h-4 mr-2 text-primary"></i> Activité par heure</h3>
+                        <span id="dash-peak-hour" class="text-xs text-amber-400">-</span>
                     </div>
+                    <div class="h-64 relative w-full"><canvas id="timelineChart"></canvas></div>
                 </div>
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
-                    <h3 class="text-slate-300 font-semibold mb-4 flex items-center">
-                        <i data-lucide="pie-chart" class="w-4 h-4 mr-2 text-emerald-400"></i> Catégories Principales
-                    </h3>
-                    <div class="space-y-3" id="dash-categories-preview">
-                        <!-- Populated via JS -->
-                    </div>
+                <div class="card">
+                    <h3 class="card-title mb-4"><i data-lucide="medal" class="w-4 h-4 mr-2 text-indigo-400"></i> Top 5 applications</h3>
+                    <div class="space-y-1" id="top-apps-list"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="card lg:col-span-2">
+                    <h3 class="card-title mb-4"><i data-lucide="grid" class="w-4 h-4 mr-2 text-blue-400"></i> Intensité par jour et par heure</h3>
+                    <div class="overflow-x-auto"><div id="heatmap-container" class="min-w-max flex flex-col gap-1"></div></div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title mb-4"><i data-lucide="pie-chart" class="w-4 h-4 mr-2 text-emerald-400"></i> Catégories principales</h3>
+                    <div class="space-y-3" id="dash-categories-preview"></div>
                 </div>
             </div>
         </div>
 
-        <!-- View: Statistiques Avancées -->
-        <div id="view-analytics" class="page-view flex-1 overflow-y-auto p-8 space-y-8 hidden">
-            <!-- KPIs Highlights Row -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                <!-- Peak Hour -->
-                <div class="bg-darkCard rounded-xl p-5 border border-slate-700/50 shadow-sm stat-card">
+        <!-- ============================================================ TIMELINE -->
+        <div id="view-timeline" class="page-view flex-1 overflow-y-auto p-8 space-y-6 hidden">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-2">
+                    <button onclick="app.shiftTimelineDay(-1)" class="icon-btn" title="Jour précédent"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                    <input type="date" id="timeline-date" onchange="app.setTimelineDay(this.value)" class="select-dark">
+                    <button onclick="app.shiftTimelineDay(1)" id="timeline-next" class="icon-btn" title="Jour suivant"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    <button onclick="app.setTimelineDay(null)" class="px-3 py-1.5 text-sm rounded-lg bg-slate-800 border border-slate-600 hover:border-primary">Aujourd'hui</button>
+                </div>
+                <p id="timeline-date-label" class="text-sm text-slate-400 capitalize">-</p>
+            </div>
+
+            <div class="grid grid-cols-2 xl:grid-cols-5 gap-4">
+                <div class="mini-stat">
+                    <i data-lucide="clock" class="w-4 h-4 text-primary"></i>
+                    <div><p class="mini-label">Temps actif</p><p id="tl-active" class="mini-value">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="coffee" class="w-4 h-4 text-slate-300"></i>
+                    <div><p class="mini-label">Inactif / pauses</p><p id="tl-idle" class="mini-value">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="sunrise" class="w-4 h-4 text-orange-400"></i>
+                    <div><p class="mini-label">Première → dernière activité</p><p id="tl-span" class="mini-value">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="layers" class="w-4 h-4 text-violet-400"></i>
+                    <div><p class="mini-label">Sessions (moy.)</p><p id="tl-sessions" class="mini-value">-</p></div>
+                </div>
+                <div class="mini-stat">
+                    <i data-lucide="brain" class="w-4 h-4 text-emerald-400"></i>
+                    <div><p class="mini-label">Temps concentré</p><p id="tl-deep" class="mini-value">-</p></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="card-title"><i data-lucide="gantt-chart" class="w-4 h-4 mr-2 text-primary"></i> Déroulé de la journée</h3>
+                    <span class="text-xs text-slate-400">Survolez un bloc pour le détail</span>
+                </div>
+                <div id="day-strip-wrapper" class="relative">
+                    <div id="day-strip" class="day-strip"></div>
+                    <div id="day-strip-ticks" class="relative h-5 mt-1 text-[10px] text-slate-500"></div>
+                    <div id="day-strip-tooltip" class="strip-tooltip hidden"></div>
+                </div>
+                <div id="day-strip-legend" class="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-xs"></div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="card lg:col-span-2">
+                    <h3 class="card-title mb-1"><i data-lucide="list-ordered" class="w-4 h-4 mr-2 text-violet-400"></i> Sessions de la journée</h3>
+                    <p class="text-xs text-slate-400 mb-4">Périodes continues passées sur une même application (1 minute ou plus)</p>
+                    <div class="max-h-96 overflow-y-auto">
+                        <table class="w-full text-left text-sm text-slate-300">
+                            <thead class="text-xs uppercase bg-slate-800 text-slate-400 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2.5">Horaire</th>
+                                    <th class="px-4 py-2.5">Application</th>
+                                    <th class="px-4 py-2.5">Fenêtre principale</th>
+                                    <th class="px-4 py-2.5 text-right">Durée</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tl-sessions-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title mb-4"><i data-lucide="medal" class="w-4 h-4 mr-2 text-indigo-400"></i> Applications du jour</h3>
+                    <div class="space-y-1" id="tl-top-apps"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================ ANALYTICS -->
+        <div id="view-analytics" class="page-view flex-1 overflow-y-auto p-8 space-y-6 hidden">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="card-sm stat-card">
                     <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">Heure de Pointe</span>
-                        <div class="p-2 bg-amber-500/10 rounded-lg text-amber-400"><i data-lucide="flame" class="w-4 h-4"></i></div>
+                        <span class="kpi-tag text-primary">Temps total</span>
+                        <div class="kpi-icon-sm bg-primary/10 text-primary"><i data-lucide="clock" class="w-4 h-4"></i></div>
+                    </div>
+                    <p id="adv-total" class="text-2xl font-bold text-white">-</p>
+                    <p id="adv-total-sub" class="text-xs text-slate-400 mt-1 truncate">-</p>
+                </div>
+                <div class="card-sm stat-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="kpi-tag text-amber-400">Heure de pointe</span>
+                        <div class="kpi-icon-sm bg-amber-500/10 text-amber-400"><i data-lucide="flame" class="w-4 h-4"></i></div>
                     </div>
                     <p id="adv-peak-hour" class="text-2xl font-bold text-white">-</p>
-                    <p id="adv-peak-hour-sub" class="text-xs text-slate-400 mt-1 truncate">0h active</p>
+                    <p id="adv-peak-hour-sub" class="text-xs text-slate-400 mt-1 truncate">-</p>
                 </div>
-
-                <!-- Peak Day -->
-                <div class="bg-darkCard rounded-xl p-5 border border-slate-700/50 shadow-sm stat-card">
+                <div class="card-sm stat-card">
                     <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-purple-400">Jour de Pointe</span>
-                        <div class="p-2 bg-purple-500/10 rounded-lg text-purple-400"><i data-lucide="calendar" class="w-4 h-4"></i></div>
-                    </div>
-                    <p id="adv-peak-day" class="text-2xl font-bold text-white">-</p>
-                    <p id="adv-peak-day-sub" class="text-xs text-slate-400 mt-1 truncate">Moyenne journalière</p>
-                </div>
-
-                <!-- Record Day -->
-                <div class="bg-darkCard rounded-xl p-5 border border-slate-700/50 shadow-sm stat-card">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-yellow-400">Record Période</span>
-                        <div class="p-2 bg-yellow-500/10 rounded-lg text-yellow-400"><i data-lucide="trophy" class="w-4 h-4"></i></div>
+                        <span class="kpi-tag text-yellow-400">Jour record</span>
+                        <div class="kpi-icon-sm bg-yellow-500/10 text-yellow-400"><i data-lucide="trophy" class="w-4 h-4"></i></div>
                     </div>
                     <p id="adv-record-day" class="text-2xl font-bold text-white">-</p>
                     <p id="adv-record-day-sub" class="text-xs text-slate-400 mt-1 truncate">-</p>
                 </div>
-
-                <!-- Productivity Score -->
-                <div class="bg-darkCard rounded-xl p-5 border border-slate-700/50 shadow-sm stat-card">
+                <div class="card-sm stat-card">
                     <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Productivité</span>
-                        <div class="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><i data-lucide="target" class="w-4 h-4"></i></div>
+                        <span class="kpi-tag text-emerald-400">Productivité</span>
+                        <div class="kpi-icon-sm bg-emerald-500/10 text-emerald-400"><i data-lucide="target" class="w-4 h-4"></i></div>
                     </div>
-                    <p id="adv-productivity-score" class="text-2xl font-bold text-white">0%</p>
-                    <p id="adv-productivity-sub" class="text-xs text-slate-400 mt-1 truncate">-</p>
+                    <p id="adv-productivity-score" class="text-2xl font-bold text-white">-</p>
+                    <p id="adv-productivity-sub" class="text-xs text-slate-400 mt-1 truncate" title="Temps productif / (productif + loisirs)">-</p>
                 </div>
-
-                <!-- Concentration & Focus -->
-                <div class="bg-darkCard rounded-xl p-5 border border-slate-700/50 shadow-sm stat-card">
+                <div class="card-sm stat-card">
                     <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-blue-400">Concentration</span>
-                        <div class="p-2 bg-blue-500/10 rounded-lg text-blue-400"><i data-lucide="zap" class="w-4 h-4"></i></div>
+                        <span class="kpi-tag text-blue-400">Concentration</span>
+                        <div class="kpi-icon-sm bg-blue-500/10 text-blue-400"><i data-lucide="zap" class="w-4 h-4"></i></div>
                     </div>
-                    <p id="adv-focus-status" class="text-lg font-bold text-white truncate">-</p>
-                    <p id="adv-focus-sub" class="text-xs text-slate-400 mt-1 truncate">0 changements/h</p>
+                    <p id="adv-focus-status" class="text-base font-bold text-white truncate">-</p>
+                    <p id="adv-focus-sub" class="text-xs text-slate-400 mt-1 truncate">-</p>
                 </div>
             </div>
 
-            <!-- Row 1: Peak Hours & Peak Weekdays -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Peak Hours Chart -->
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 class="text-white font-semibold flex items-center">
-                                <i data-lucide="clock" class="w-4 h-4 mr-2 text-primary"></i> Heures de Pointe (Répartition 24h)
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-0.5">Distribution horaire cumulée et pic d'intensité</p>
-                        </div>
-                        <span id="badge-dominant-quadrant" class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-full">Après-midi</span>
-                    </div>
-                    <div class="h-64 relative w-full">
-                        <canvas id="peakHoursChart"></canvas>
-                    </div>
-                    <!-- Quadrants Breakdown mini-pills -->
-                    <div id="quadrants-breakdown" class="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-slate-700/40 text-center text-xs">
-                        <!-- Populated via JS -->
-                    </div>
-                </div>
-
-                <!-- Peak Weekdays Chart -->
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 class="text-white font-semibold flex items-center">
-                                <i data-lucide="calendar" class="w-4 h-4 mr-2 text-purple-400"></i> Jours de la Semaine de Pointe
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-0.5">Moyenne journalière active (Lun - Dim)</p>
-                        </div>
-                        <span id="badge-weekday-split" class="text-xs bg-purple-500/10 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-full">Semaine vs Week-end</span>
-                    </div>
-                    <div class="h-64 relative w-full">
-                        <canvas id="peakDaysChart"></canvas>
-                    </div>
-                    <!-- Weekday vs Weekend bar -->
-                    <div id="weekday-split-summary" class="mt-4 pt-4 border-t border-slate-700/40 flex items-center justify-between text-xs text-slate-400">
-                        <!-- Populated via JS -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 2: Time-Series & Spikes Detection (Full width) -->
-            <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="text-white font-semibold flex items-center">
-                            <i data-lucide="trending-up" class="w-4 h-4 mr-2 text-yellow-400"></i> Évolution & Détection des Plus Gros Pics
-                        </h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Activité quotidienne sur la période (le plus gros pic apparaît en doré avec badge 🏆)</p>
-                    </div>
-                    <div class="flex items-center space-x-2 text-xs">
-                        <span class="inline-flex items-center text-amber-400 font-medium">
-                            <span class="w-3 h-3 rounded bg-yellow-500 mr-1.5 inline-block"></span> Jour Record
-                        </span>
-                    </div>
-                </div>
-                <div class="h-64 relative w-full">
-                    <canvas id="peaksTimeSeriesChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Row 3: Categories & Productivity Deep-Dive -->
+            <!-- Sessions & focus -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <!-- Donut Chart -->
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm lg:col-span-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <h3 class="text-white font-semibold flex items-center">
-                                <i data-lucide="pie-chart" class="w-4 h-4 mr-2 text-emerald-400"></i> Répartition par Catégories
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-0.5">Part du temps consommé par chaque catégorie</p>
-                        </div>
-                    </div>
-                    <div class="h-64 relative w-full flex items-center justify-center">
-                        <canvas id="categoryDoughnutChart"></canvas>
-                    </div>
+                <div class="card lg:col-span-5">
+                    <h3 class="card-title mb-1"><i data-lucide="timer" class="w-4 h-4 mr-2 text-sky-400"></i> Durée des sessions</h3>
+                    <p class="text-xs text-slate-400 mb-4">Part du temps total passée dans des sessions de chaque durée</p>
+                    <div class="h-56 relative w-full"><canvas id="sessionBucketsChart"></canvas></div>
                 </div>
-
-                <!-- Categories List & Breakdown -->
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm lg:col-span-7">
-                    <h3 class="text-white font-semibold mb-1 flex items-center">
-                        <i data-lucide="layers" class="w-4 h-4 mr-2 text-primary"></i> Détail & Applications par Catégorie
-                    </h3>
-                    <p class="text-xs text-slate-400 mb-4">Catégories classées par temps d'utilisation décroissant</p>
-                    <div class="space-y-3 max-h-72 overflow-y-auto pr-1" id="adv-categories-list">
-                        <!-- Populated via JS -->
+                <div class="card lg:col-span-7">
+                    <h3 class="card-title mb-4"><i data-lucide="brain" class="w-4 h-4 mr-2 text-emerald-400"></i> Sessions & rythme</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                        <div class="sub-stat"><p class="mini-label">Sessions</p><p id="adv-sessions" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Durée moyenne</p><p id="adv-avg-session" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Temps concentré</p><p id="adv-deep-work" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Pauses (moy.)</p><p id="adv-breaks" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Début moyen</p><p id="adv-avg-start" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Fin moyenne</p><p id="adv-avg-end" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Amplitude moy.</p><p id="adv-avg-span" class="mini-value">-</p></div>
+                        <div class="sub-stat"><p class="mini-label">Plein écran</p><p id="adv-fullscreen" class="mini-value">-</p></div>
                     </div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Plus longues sessions</p>
+                    <div id="adv-top-sessions" class="space-y-1.5"></div>
                 </div>
             </div>
 
-            <!-- Row 4: Top Apps & Trends Comparison (N vs N-1) -->
-            <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="card-title"><i data-lucide="clock" class="w-4 h-4 mr-2 text-primary"></i> Répartition sur 24h</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Temps cumulé par tranche horaire</p>
+                        </div>
+                        <span id="badge-dominant-quadrant" class="badge-neutral">-</span>
+                    </div>
+                    <div class="h-64 relative w-full"><canvas id="peakHoursChart"></canvas></div>
+                    <div id="quadrants-breakdown" class="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-slate-700/40 text-center text-xs"></div>
+                </div>
+                <div class="card">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="card-title"><i data-lucide="calendar" class="w-4 h-4 mr-2 text-purple-400"></i> Jours de la semaine</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Moyenne par jour d'activité</p>
+                        </div>
+                        <span id="badge-peak-day" class="text-xs bg-purple-500/10 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-full">-</span>
+                    </div>
+                    <div class="h-64 relative w-full"><canvas id="peakDaysChart"></canvas></div>
+                    <div id="weekday-split-summary" class="mt-4 pt-4 border-t border-slate-700/40 flex items-center justify-between text-xs text-slate-400"></div>
+                </div>
+            </div>
+
+            <div class="card">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h3 class="text-white font-semibold flex items-center">
-                            <i data-lucide="arrow-up-right" class="w-4 h-4 mr-2 text-indigo-400"></i> Applications les plus utilisées & Tendances
-                        </h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Comparaison directe avec la période précédente équivalente</p>
+                        <h3 class="card-title"><i data-lucide="trending-up" class="w-4 h-4 mr-2 text-yellow-400"></i> Évolution quotidienne par catégorie</h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Temps actif par jour, découpé par catégorie</p>
                     </div>
+                </div>
+                <div class="h-72 relative w-full"><canvas id="categoryEvolutionChart"></canvas></div>
+                <p id="category-evolution-empty" class="hidden text-sm text-slate-500 text-center py-10">Pas encore assez de jours d'activité sur cette période</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="card lg:col-span-5">
+                    <h3 class="card-title mb-1"><i data-lucide="pie-chart" class="w-4 h-4 mr-2 text-emerald-400"></i> Répartition par catégorie</h3>
+                    <p class="text-xs text-slate-400 mb-4">Part du temps consommé par chaque catégorie</p>
+                    <div class="h-64 relative w-full flex items-center justify-center"><canvas id="categoryDoughnutChart"></canvas></div>
+                </div>
+                <div class="card lg:col-span-7">
+                    <h3 class="card-title mb-1"><i data-lucide="layers" class="w-4 h-4 mr-2 text-primary"></i> Détail par catégorie</h3>
+                    <p class="text-xs text-slate-400 mb-4">Catégories classées par temps d'utilisation</p>
+                    <div class="space-y-3 max-h-72 overflow-y-auto pr-1" id="adv-categories-list"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="mb-4">
+                    <h3 class="card-title"><i data-lucide="arrow-up-right" class="w-4 h-4 mr-2 text-indigo-400"></i> Applications & tendances</h3>
+                    <p id="adv-trends-sub" class="text-xs text-slate-400 mt-0.5">Comparaison avec le même moment de la période précédente</p>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
@@ -321,20 +384,17 @@
                                 <th class="px-5 py-3">Temps actuel</th>
                                 <th class="px-5 py-3">Période préc.</th>
                                 <th class="px-5 py-3">Évolution</th>
-                                <th class="px-5 py-3">% Période</th>
+                                <th class="px-5 py-3">% période</th>
                             </tr>
                         </thead>
-                        <tbody id="adv-apps-trends-table">
-                            <!-- Populated via JS -->
-                        </tbody>
+                        <tbody id="adv-apps-trends-table"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- View: Applications -->
+        <!-- ============================================================ APPLICATIONS -->
         <div id="view-applications" class="page-view flex-1 overflow-y-auto p-8 hidden space-y-4">
-            <!-- Toolbar -->
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-darkCard p-4 rounded-xl border border-slate-700/50 shadow-sm">
                 <div class="flex items-center space-x-3 w-full sm:w-auto">
                     <div class="relative w-full sm:w-72">
@@ -346,53 +406,56 @@
                     </select>
                 </div>
                 <div class="flex items-center space-x-3 text-xs text-slate-400">
+                    <span class="hidden md:inline">Cliquez sur une ligne pour voir le détail</span>
                     <span id="apps-count-badge" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg font-medium text-slate-300">0 applications</span>
                 </div>
             </div>
 
-            <!-- Table -->
-            <div class="bg-darkCard rounded-xl border border-slate-700/50 shadow-sm overflow-hidden">
+            <div class="bg-darkCard rounded-xl border border-slate-700/50 shadow-sm overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-300">
                     <thead class="text-xs uppercase bg-slate-800 text-slate-400 border-b border-slate-700">
                         <tr>
-                            <th scope="col" class="px-6 py-4">Application</th>
-                            <th scope="col" class="px-6 py-4">Catégorie (clic pour modifier)</th>
-                            <th scope="col" class="px-6 py-4">Sessions</th>
-                            <th scope="col" class="px-6 py-4">Temps d'utilisation</th>
-                            <th scope="col" class="px-6 py-4">%</th>
+                            <th class="px-5 py-4">Application</th>
+                            <th class="px-5 py-4">Catégorie</th>
+                            <th class="px-5 py-4">Sessions</th>
+                            <th class="px-5 py-4">Session moy.</th>
+                            <th class="px-5 py-4">Plus longue</th>
+                            <th class="px-5 py-4">Dernière utilisation</th>
+                            <th class="px-5 py-4">Temps</th>
+                            <th class="px-5 py-4">%</th>
                         </tr>
                     </thead>
-                    <tbody id="all-apps-table">
-                        <!-- Populated via JS -->
-                    </tbody>
+                    <tbody id="all-apps-table"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- View: Settings -->
+        <!-- ============================================================ SETTINGS -->
         <div id="view-settings" class="page-view flex-1 overflow-y-auto p-8 hidden">
             <div class="max-w-3xl space-y-8">
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                <div class="card">
                     <h3 class="text-lg font-medium text-white mb-6 border-b border-slate-700 pb-2">Général</h3>
-                    
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h4 class="text-slate-200">Démarrer avec Windows</h4>
-                                <p class="text-xs text-slate-400">Lancer Code Trackr automatiquement au démarrage</p>
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-slate-200">Démarrer avec Windows</h4>
+                                    <p class="text-xs text-slate-400">Lancer Trackr automatiquement (en arrière-plan) à l'ouverture de session</p>
+                                </div>
+                                <label class="toggle">
+                                    <input type="checkbox" id="setting-startup" class="sr-only peer">
+                                    <div class="toggle-track peer"></div>
+                                </label>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="setting-startup" class="sr-only peer">
-                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                            </label>
+                            <p id="startup-status" class="text-xs mt-2 hidden"></p>
                         </div>
-                        
+
                         <div class="flex items-center justify-between">
                             <div>
                                 <h4 class="text-slate-200">Intervalle d'actualisation (secondes)</h4>
-                                <p class="text-xs text-slate-400">Fréquence de vérification de l'activité</p>
+                                <p class="text-xs text-slate-400">Fréquence de vérification de la fenêtre active (1 à 60)</p>
                             </div>
-                            <input type="number" id="setting-refresh-interval" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                            <input type="number" min="1" max="60" id="setting-refresh-interval" class="input-num">
                         </div>
 
                         <div class="flex items-center justify-between">
@@ -400,55 +463,96 @@
                                 <h4 class="text-slate-200">Activer la détection d'inactivité</h4>
                                 <p class="text-xs text-slate-400">Détecter l'absence de mouvements de souris / clavier</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
+                            <label class="toggle">
                                 <input type="checkbox" id="setting-detect-idle" class="sr-only peer">
-                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                <div class="toggle-track peer"></div>
                             </label>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <div>
                                 <h4 class="text-slate-200">Délai d'inactivité (secondes)</h4>
-                                <p class="text-xs text-slate-400">Temps avant de considérer l'utilisateur inactif</p>
+                                <p class="text-xs text-slate-400">Temps sans action avant de considérer l'utilisateur inactif</p>
                             </div>
-                            <input type="number" id="setting-idle-timeout" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                            <input type="number" min="10" id="setting-idle-timeout" class="input-num">
                         </div>
-                        
+
                         <div class="flex items-center justify-between">
                             <div>
-                                <h4 class="text-slate-200">Détecter le mode Plein écran</h4>
-                                <p class="text-xs text-slate-400">Différencier une application maximisée (ex: jeu, vidéo)</p>
+                                <h4 class="text-slate-200">Détecter le mode plein écran</h4>
+                                <p class="text-xs text-slate-400">Différencier une application en plein écran (jeu, vidéo)</p>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
+                            <label class="toggle">
                                 <input type="checkbox" id="setting-detect-fullscreen" class="sr-only peer">
-                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                <div class="toggle-track peer"></div>
                             </label>
                         </div>
 
                         <div class="flex items-center justify-between">
                             <div>
                                 <h4 class="text-slate-200">Rétention des données (jours)</h4>
-                                <p class="text-xs text-slate-400">Durée de conservation des logs bruts</p>
+                                <p class="text-xs text-slate-400">Au-delà, l'historique est supprimé. Les vues « année » et « tout l'historique » en dépendent.</p>
                             </div>
-                            <input type="number" id="setting-retention" class="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 w-24 text-center focus:outline-none focus:border-primary">
+                            <input type="number" min="1" id="setting-retention" class="input-num">
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-darkCard rounded-xl p-6 border border-slate-700/50 shadow-sm">
+                <div class="card">
                     <h3 class="text-lg font-medium text-white mb-6 border-b border-slate-700 pb-2">Catégories d'applications</h3>
-                    <p class="text-sm text-slate-400 mb-4">Modifiez le JSON ci-dessous pour configurer vos catégories. Utilisez le nom de l'exécutable (sans .exe).</p>
+                    <p class="text-sm text-slate-400 mb-4">Modifiez le JSON ci-dessous pour configurer vos catégories. Utilisez le nom de l'exécutable (sans .exe). Pour une application précise, le plus simple est de changer sa catégorie depuis l'onglet Applications.</p>
                     <textarea id="setting-categories" class="w-full h-64 bg-slate-900 border border-slate-600 rounded-lg p-4 font-mono text-sm focus:outline-none focus:border-primary" spellcheck="false"></textarea>
                 </div>
 
                 <div class="flex justify-end">
-                    <button onclick="app.saveSettings()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white font-medium rounded-lg transition-colors">
+                    <button onclick="app.saveSettings()" class="px-6 py-2 bg-primary hover:bg-blue-600 text-white font-medium rounded-lg">
                         Enregistrer les modifications
                     </button>
                 </div>
             </div>
         </div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast hidden"></div>
     </main>
+
+    <!-- ============================================================ APP DETAILS MODAL -->
+    <div id="app-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="app.closeAppModal()"></div>
+        <div class="absolute inset-y-6 left-1/2 -translate-x-1/2 w-[min(1000px,calc(100%-3rem))] bg-darkBg border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-darkCard">
+                <div class="min-w-0">
+                    <h3 id="modal-app-name" class="text-lg font-semibold text-white truncate">-</h3>
+                    <p id="modal-app-sub" class="text-xs text-slate-400 mt-0.5">-</p>
+                </div>
+                <button onclick="app.closeAppModal()" class="icon-btn" title="Fermer"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="sub-stat"><p class="mini-label">Temps total</p><p id="modal-total" class="mini-value">-</p></div>
+                    <div class="sub-stat"><p class="mini-label">Sessions (moy.)</p><p id="modal-sessions" class="mini-value">-</p></div>
+                    <div class="sub-stat"><p class="mini-label">Plus longue session</p><p id="modal-longest" class="mini-value">-</p></div>
+                    <div class="sub-stat"><p class="mini-label">Jours d'utilisation</p><p id="modal-days" class="mini-value">-</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="card">
+                        <h4 class="card-title mb-3"><i data-lucide="trending-up" class="w-4 h-4 mr-2 text-primary"></i> Par jour</h4>
+                        <div class="h-48 relative"><canvas id="appDailyChart"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <h4 class="card-title mb-3"><i data-lucide="clock" class="w-4 h-4 mr-2 text-amber-400"></i> Par heure</h4>
+                        <div class="h-48 relative"><canvas id="appHourlyChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4 class="card-title mb-1"><i data-lucide="app-window" class="w-4 h-4 mr-2 text-violet-400"></i> Fenêtres les plus utilisées</h4>
+                    <p class="text-xs text-slate-400 mb-4">Titres de fenêtre : sites, fichiers, projets, conversations...</p>
+                    <div id="modal-titles" class="space-y-2"></div>
+                </div>
+                <p id="modal-seen" class="text-xs text-slate-500">-</p>
+            </div>
+        </div>
+    </div>
 
     <script src="js/charts.js"></script>
     <script src="js/app.js"></script>
