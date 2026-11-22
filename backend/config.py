@@ -13,6 +13,7 @@ APP_DATA_DIR = os.getenv('TRACKR_DATA_DIR') or os.path.join(
 CONFIG_FILE = os.path.join(APP_DATA_DIR, 'config.json')
 
 DEFAULT_CONFIG = {
+    "config_version": 2,
     "language": "fr",
     "startup": True,
     "idle_timeout": 300, # 5 minutes
@@ -121,6 +122,13 @@ class ConfigManager:
                     
                 if "app_overrides" not in self.config:
                     self.config["app_overrides"] = {}
+
+                # v2: the old default retention (30 days) silently deleted the history
+                # every month. Raise it once to the new default.
+                if user_config.get("config_version", 1) < 2:
+                    if user_config.get("retention_days", 30) == 30:
+                        self.config["retention_days"] = DEFAULT_CONFIG["retention_days"]
+                    self.config["config_version"] = 2
                 self.save()
             except Exception as e:
                 print(f"Error loading config: {e}")

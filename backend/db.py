@@ -13,6 +13,18 @@ ACTIVE_SQL = "status IN ('active', 'fullscreen')"
 # belong to the same session.
 SESSION_GAP_MIN = 30
 
+# A session survives short detours to other apps (changing a song, answering a
+# message...): coming back to the same app within this delay continues it.
+# Only an idle period (no keyboard / mouse input) or a longer absence ends it.
+SESSION_INTERRUPT_TOLERANCE = 120
+
+# Merged rows never exceed one clock hour: longer rows are artefacts written by
+# old versions after a sleep / hibernation.
+MAX_ROW_DURATION = 3700
+
+# Visits shorter than this are not counted as sessions (alt-tab, quick check)
+MIN_SESSION = 60
+
 # Session length buckets (label, upper bound in seconds)
 SESSION_BUCKETS = [
     ("< 1 min", 60),
@@ -79,9 +91,50 @@ class DatabaseManager:
                 WHERE end_timestamp IS NULL
             ''')
 
+            # v2: neutralise rows of several hours created by the old tracker when the
+            # PC woke up from sleep (the whole sleep was logged on one record).
+            version = cursor.execute('PRAGMA user_version').fetchone()[0]
+            if version < 2:
+                cursor.execute('''
+                    UPDATE raw_logs
+                    SET duration = 5, timestamp = COALESCE(end_timestamp, timestamp + duration) - 5
+                    WHERE duration > ?
+                ''', (MAX_ROW_DURATION,))
+                cursor.execute('PRAGMA user_version = 2')
+                version = 2
+            if version < 3:
+                self._compact_rows(cursor)
+                cursor.execute('PRAGMA user_version = 3')
+
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON raw_logs(timestamp)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_app_name ON raw_logs(app_name)')
             self.conn.commit()
+
+    def _compact_rows(self, cursor):
+        """Merge contiguous identical rows written by old versions (one row per tick)."""
+        rows = cursor.execute('''
+            SELECT id, timestamp, app_name, window_title, status, duration,
+                   COALESCE(end_timestamp, timestamp + duration) AS end_ts
+            FROM raw_logs ORDER BY timestamp, id
+        ''').fetchall()
+        merged = []
+        for r in rows:
+            last = merged[-1] if merged else None
+            if (last and last[1] == r['app_name'] and last[2] == r['window_title'] and last[3] == r['status']
+                    and abs(r['timestamp'] - last[5]) <= 10
+                    and _local_hour_key(last[0]) == _local_hour_key(r['timestamp'])):
+                last[4] += r['duration']
+                last[5] = max(last[5], r['end_ts'])
+            else:
+                merged.append([r['timestamp'], r['app_name'], r['window_title'], r['status'],
+                               r['duration'], r['end_ts']])
+        if len(merged) == len(rows):
+            return
+        cursor.execute('DELETE FROM raw_logs')
+        cursor.executemany('''
+            INSERT INTO raw_logs (timestamp, app_name, window_title, status, duration, end_timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', merged)
 
     # ------------------------------------------------------------------ writes
 
@@ -212,20 +265,30 @@ class DatabaseManager:
         return self._query(sql, params)
 
     def _build_sessions(self, segments):
-        """Group active segments into per-app sessions and idle segments into breaks."""
+        """Group active segments into per-app sessions and idle segments into breaks.
+
+        A session of an app continues as long as the user comes back to it within
+        SESSION_INTERRUPT_TOLERANCE seconds (short detours to other apps are
+        counted for those apps, not for the session). Idle periods end every
+        open session.
+        """
         gap = self._session_gap()
+        tolerance = max(SESSION_INTERRUPT_TOLERANCE, gap)
         sessions = []
         breaks = []
         switches = 0
-        current = None
+        open_sessions = {}
         current_break = None
         last_active_app = None
 
+        def close_all():
+            sessions.extend(open_sessions.values())
+            open_sessions.clear()
+
         for seg in segments:
+            title = seg['window_title'] or ''
             if seg['status'] == 'idle':
-                if current:
-                    sessions.append(current)
-                    current = None
+                close_all()
                 if current_break and seg['start'] - current_break['end'] <= gap:
                     current_break['end'] = seg['end']
                     current_break['duration'] += seg['duration']
@@ -239,35 +302,58 @@ class DatabaseManager:
                 breaks.append(current_break)
                 current_break = None
 
-            if last_active_app is not None and seg['app_name'] != last_active_app:
+            app = seg['app_name']
+            if last_active_app is not None and app != last_active_app:
                 switches += 1
-            last_active_app = seg['app_name']
+            last_active_app = app
 
-            if current and current['app_name'] == seg['app_name'] and seg['start'] - current['end'] <= gap:
+            current = open_sessions.get(app)
+            if current and seg['start'] - current['end'] <= tolerance:
                 current['end'] = max(current['end'], seg['end'])
                 current['duration'] += seg['duration']
-                titles = current['titles']
-                titles[seg['window_title'] or ''] = titles.get(seg['window_title'] or '', 0) + seg['duration']
+                current['titles'][title] = current['titles'].get(title, 0) + seg['duration']
             else:
                 if current:
                     sessions.append(current)
-                current = {
-                    'app_name': seg['app_name'],
+                open_sessions[app] = {
+                    'app_name': app,
                     'start': seg['start'],
                     'end': seg['end'],
                     'duration': seg['duration'],
-                    'titles': {seg['window_title'] or '': seg['duration']},
+                    'titles': {title: seg['duration']},
                 }
 
-        if current:
-            sessions.append(current)
+        close_all()
         if current_break:
             breaks.append(current_break)
 
+        sessions.sort(key=lambda s: s['start'])
         for s in sessions:
             s['main_title'] = max(s['titles'], key=s['titles'].get) if s['titles'] else ''
             del s['titles']
         return sessions, breaks, switches
+
+    def _active_blocks(self, segments):
+        """Continuous periods in front of the screen (any app), ended by idle or a gap."""
+        gap = self._session_gap()
+        blocks = []
+        current = None
+        for seg in segments:
+            if seg['status'] == 'idle':
+                if current:
+                    blocks.append(current)
+                    current = None
+                continue
+            if current and seg['start'] - current['end'] <= gap:
+                current['end'] = max(current['end'], seg['end'])
+                current['duration'] += seg['duration']
+            else:
+                if current:
+                    blocks.append(current)
+                current = {'start': seg['start'], 'end': seg['end'], 'duration': seg['duration']}
+        if current:
+            blocks.append(current)
+        return blocks
 
     def _session_to_dict(self, s):
         return {
@@ -289,8 +375,8 @@ class DatabaseManager:
         total_active = sum(s['duration'] for s in sessions)
         active_hours = total_active / 3600.0
 
-        # Sessions shorter than 10 seconds are mostly alt-tab noise.
-        meaningful = [s for s in sessions if s['duration'] >= 10]
+        # Very short visits (< 1 min) are not counted as sessions.
+        meaningful = [s for s in sessions if s['duration'] >= MIN_SESSION]
         sessions_count = len(meaningful)
         avg_session = int(sum(s['duration'] for s in meaningful) / sessions_count) if sessions_count else 0
         longest = max(sessions, key=lambda s: s['duration']) if sessions else None
@@ -326,7 +412,19 @@ class DatabaseManager:
 
         top_sessions = sorted(sessions, key=lambda s: s['duration'], reverse=True)[:5]
 
+        blocks = self._active_blocks(segments)
+        longest_block = max(blocks, key=lambda b: b['duration']) if blocks else None
+        if longest_block:
+            longest_block = {
+                "start_label": datetime.fromtimestamp(longest_block['start']).strftime('%H:%M'),
+                "end_label": datetime.fromtimestamp(longest_block['end']).strftime('%H:%M'),
+                "date": datetime.fromtimestamp(longest_block['start']).strftime('%Y-%m-%d'),
+                "duration": longest_block['duration'],
+                "formatted": self._format_duration(longest_block['duration']),
+            }
+
         return {
+            "longest_block": longest_block,
             "sessions_count": sessions_count,
             "avg_session": avg_session,
             "avg_session_formatted": self._format_duration(avg_session),
@@ -493,7 +591,7 @@ class DatabaseManager:
                 "longest_session": 0, "last_used": 0,
             })
             entry['total_duration'] += s['duration']
-            if s['duration'] >= 10:
+            if s['duration'] >= MIN_SESSION:
                 entry['sessions_count'] += 1
             entry['longest_session'] = max(entry['longest_session'], s['duration'])
             entry['last_used'] = max(entry['last_used'], s['end'])
@@ -533,7 +631,7 @@ class DatabaseManager:
 
         sessions, _, _ = self._build_sessions(segments)
         app_sessions = [s for s in sessions if s['app_name'] == app_name]
-        meaningful = [s for s in app_sessions if s['duration'] >= 10]
+        meaningful = [s for s in app_sessions if s['duration'] >= MIN_SESSION]
         longest = max(app_sessions, key=lambda s: s['duration']) if app_sessions else None
 
         hourly = [0] * 24
@@ -659,6 +757,124 @@ class DatabaseManager:
             WHERE timestamp >= ? AND timestamp <= ? AND {ACTIVE_SQL}
             GROUP BY weekday, hour
         ''', (start_ts, end_ts))
+
+    # ------------------------------------------------------------------ evolution
+
+    MONTHS_FR = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août",
+                 "sept.", "oct.", "nov.", "déc."]
+
+    def get_evolution(self, start_ts, end_ts, granularity='auto'):
+        """Active time per day / week / month over the period, with comparisons."""
+        rows = self._query(f'''
+            SELECT strftime('%Y-%m-%d', datetime(timestamp, 'unixepoch', 'localtime')) AS d,
+                   app_name, SUM(duration) AS dur
+            FROM raw_logs
+            WHERE timestamp >= ? AND timestamp <= ? AND {ACTIVE_SQL}
+            GROUP BY d, app_name
+        ''', (start_ts, end_ts))
+        if not rows:
+            return {"granularity": granularity if granularity != 'auto' else 'day', "buckets": [], "categories": []}
+
+        first_day = datetime.strptime(min(r['d'] for r in rows), '%Y-%m-%d').date()
+        period_start = datetime.fromtimestamp(start_ts).date()
+        period_end = min(datetime.fromtimestamp(end_ts), datetime.now()).date()
+        range_start = max(period_start, first_day)
+        span_days = (period_end - range_start).days + 1
+
+        if granularity not in ('day', 'week', 'month'):
+            granularity = 'day' if span_days <= 31 else ('week' if span_days <= 26 * 7 else 'month')
+
+        def bucket_start(day):
+            if granularity == 'week':
+                return day - timedelta(days=day.weekday())
+            if granularity == 'month':
+                return day.replace(day=1)
+            return day
+
+        def next_bucket(day):
+            if granularity == 'week':
+                return day + timedelta(days=7)
+            if granularity == 'month':
+                return (day.replace(day=28) + timedelta(days=4)).replace(day=1)
+            return day + timedelta(days=1)
+
+        def label(day):
+            if granularity == 'week':
+                return f"Sem. du {day.strftime('%d/%m')}"
+            if granularity == 'month':
+                return f"{self.MONTHS_FR[day.month - 1]} {day.year}"
+            return day.strftime('%d/%m')
+
+        # Every bucket of the range, including empty ones (they matter for trends)
+        buckets = {}
+        order = []
+        cur = bucket_start(range_start)
+        while cur <= period_end:
+            last = min(next_bucket(cur) - timedelta(days=1), period_end)
+            buckets[cur] = {"total": 0, "apps": {}, "cats": {}, "days": set(), "first": cur, "last": last}
+            order.append(cur)
+            cur = next_bucket(cur)
+
+        for r in rows:
+            day = datetime.strptime(r['d'], '%Y-%m-%d').date()
+            b = buckets.get(bucket_start(day))
+            if b is None:
+                continue
+            b["total"] += r['dur']
+            b["days"].add(day)
+            b["apps"][r['app_name']] = b["apps"].get(r['app_name'], 0) + r['dur']
+            cat = config.get_category_for_app(r['app_name'])
+            b["cats"][cat] = b["cats"].get(cat, 0) + r['dur']
+
+        all_cats = {}
+        for b in buckets.values():
+            for c, v in b["cats"].items():
+                all_cats[c] = all_cats.get(c, 0) + v
+        cat_order = [c for c, _ in sorted(all_cats.items(), key=lambda kv: kv[1], reverse=True)]
+
+        result = []
+        prev_total = None
+        totals = []
+        for key in order:
+            b = buckets[key]
+            total = b["total"]
+            totals.append(total)
+            top_app = max(b["apps"], key=b["apps"].get) if b["apps"] else None
+            top_cat = max(b["cats"], key=b["cats"].get) if b["cats"] else None
+            productive = sum(v for c, v in b["cats"].items() if config.get_productivity_type(c) == 'productive')
+            entertainment = sum(v for c, v in b["cats"].items() if config.get_productivity_type(c) == 'entertainment')
+            active_days = len(b["days"])
+            result.append({
+                "key": key.strftime('%Y-%m-%d'),
+                "label": label(key),
+                "first_day": b["first"].strftime('%Y-%m-%d'),
+                "last_day": b["last"].strftime('%Y-%m-%d'),
+                "is_current": b["first"] <= datetime.now().date() <= (next_bucket(key) - timedelta(days=1)),
+                "total": total,
+                "formatted": self._format_duration(total),
+                "active_days": active_days,
+                "daily_average": int(total / active_days) if active_days else 0,
+                "daily_average_formatted": self._format_duration(int(total / active_days)) if active_days else "-",
+                "pct_change": self._pct_change(total, prev_total) if prev_total and prev_total >= 1800 else None,
+                "top_app": top_app,
+                "top_app_formatted": self._format_duration(b["apps"][top_app]) if top_app else "-",
+                "top_category": top_cat,
+                "productivity_score": round(productive / (productive + entertainment) * 100)
+                                      if (productive + entertainment) else None,
+                "categories": [b["cats"].get(c, 0) for c in cat_order],
+            })
+            prev_total = total
+
+        non_empty = [t for t in totals if t > 0]
+        best = max(result, key=lambda x: x["total"]) if result else None
+        return {
+            "granularity": granularity,
+            "buckets": result,
+            "categories": cat_order,
+            "average": int(sum(non_empty) / len(non_empty)) if non_empty else 0,
+            "average_formatted": self._format_duration(int(sum(non_empty) / len(non_empty))) if non_empty else "-",
+            "best": {"label": best["label"], "formatted": best["formatted"]} if best and best["total"] else None,
+        }
 
     # ------------------------------------------------------------------ analytics
 

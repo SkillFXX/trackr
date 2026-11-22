@@ -544,6 +544,67 @@ Object.assign(ChartManager.prototype, {
         });
     },
 
+    // 10. Evolution over time (stacked categories + average line)
+    renderEvolution(canvasId, evo) {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        this._destroyChart(canvasId);
+        const buckets = evo.buckets;
+        const labels = buckets.map(b => b.label + (b.is_current ? ' *' : ''));
+        const datasets = evo.categories.map((cat, ci) => ({
+            type: 'bar',
+            label: cat,
+            data: buckets.map(b => b.categories[ci] / 3600),
+            backgroundColor: this.getCategoryColor(cat),
+            borderRadius: 2,
+            stack: 'cat',
+            order: 2
+        }));
+        datasets.push({
+            type: 'line',
+            label: 'Moyenne',
+            data: buckets.map(() => evo.average / 3600),
+            borderColor: '#f8fafc',
+            borderDash: [5, 5],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            order: 1
+        });
+
+        this.charts[canvasId] = new Chart(el.getContext('2d'), {
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12, font: { size: 11 }, color: '#cbd5e1' } },
+                    tooltip: {
+                        filter: (item) => item.raw > 0 && item.dataset.type !== 'line',
+                        itemSort: (a, b) => b.raw - a.raw,
+                        callbacks: {
+                            title: (items) => {
+                                const b = buckets[items[0].dataIndex];
+                                return b.label + (b.is_current ? ' (en cours)' : '');
+                            },
+                            label: (ctx) => ` ${ctx.dataset.label} : ${this._formatDurationTooltip(ctx.raw * 60)}`,
+                            footer: (items) => {
+                                const b = buckets[items[0].dataIndex];
+                                const lines = [`Total : ${b.formatted}`];
+                                if (b.pct_change !== null && b.pct_change !== undefined) lines.push(`vs précédente : ${b.pct_change > 0 ? '+' : ''}${b.pct_change}%`);
+                                return lines;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
+                    y: { ...this._durationAxis('h'), stacked: true }
+                }
+            }
+        });
+    },
+
     // 9. Generic bar chart in minutes (app details)
     renderMinutesBars(canvasId, labels, seconds, color = '#3b82f6', titles = null) {
         const el = document.getElementById(canvasId);

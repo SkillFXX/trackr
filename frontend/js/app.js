@@ -50,6 +50,8 @@ class App {
             if (document.visibilityState === 'visible') this.autoRefresh();
         });
         window.addEventListener('focus', () => this.autoRefresh());
+        document.querySelectorAll('#evo-granularity .seg-btn').forEach(b =>
+            b.addEventListener('click', () => this.setEvolutionGranularity(b.dataset.g)));
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') this.closeAppModal();
         });
@@ -564,6 +566,12 @@ class App {
             document.getElementById('adv-avg-span').textContent = rhythm.avg_span_formatted || '-';
             document.getElementById('adv-fullscreen').textContent = data.total_fullscreen_formatted || '-';
 
+            const lb = focus.longest_block;
+            const lbDate = lb ? new Date(lb.date + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+            document.getElementById('adv-longest-block').innerHTML = lb
+                ? `Plus longue période devant l'écran : <strong class="text-white">${lb.formatted}</strong> (${lbDate}, ${lb.start_label} → ${lb.end_label})`
+                : '';
+
             const topSessions = document.getElementById('adv-top-sessions');
             if (focus.top_sessions && focus.top_sessions.length > 0) {
                 topSessions.innerHTML = focus.top_sessions.map(s => {
@@ -572,8 +580,8 @@ class App {
                     <div class="app-row !py-1.5" data-app="${esc(s.app_name)}">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2 h-2 rounded-full shrink-0" style="background-color:${window.charts.getCategoryColor(s.category)}"></span>
-                            <span class="text-sm text-white font-medium truncate">${esc(s.app_name)}</span>
-                            <span class="text-xs text-slate-500 truncate hidden md:inline">${esc(s.title)}</span>
+                            <span class="text-sm text-white font-medium shrink-0">${esc(s.app_name)}</span>
+                            <span class="text-xs text-slate-500 truncate hidden md:inline" title="${esc(s.title)}">${esc(s.title)}</span>
                         </div>
                         <div class="text-right shrink-0 pl-3">
                             <span class="text-sm font-semibold text-white">${s.formatted}</span>
@@ -615,12 +623,7 @@ class App {
                     <span>Week-end (sam-dim) : <strong class="text-white">${sp.weekend_pct}%</strong></span>
                 </div>`;
 
-            // Category evolution (needs at least 2 days to make sense)
-            const evo = data.category_evolution;
-            const enoughDays = evo && evo.dates.length >= 2;
-            document.getElementById('categoryEvolutionChart').parentElement.classList.toggle('hidden', !enoughDays);
-            document.getElementById('category-evolution-empty').classList.toggle('hidden', enoughDays);
-            if (enoughDays) window.charts.renderCategoryEvolution('categoryEvolutionChart', evo);
+            this.loadEvolution(silent);
 
             // Categories
             window.charts.renderCategoryDoughnut('categoryDoughnutChart', data.categories);
@@ -698,6 +701,70 @@ class App {
         } finally {
             if (!silent) this.showLoader(false);
         }
+    }
+
+    // ------------------------------------------------------------------ EVOLUTION
+    setEvolutionGranularity(g) {
+        this.evoGranularity = g;
+        document.querySelectorAll('#evo-granularity .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.g === g));
+        this.loadEvolution();
+    }
+
+    async loadEvolution(silent = false) {
+        const req = this._newRequest('evolution');
+        try {
+            const evo = await this.api.get_evolution(this.currentPeriod, this.evoGranularity || 'auto');
+            if (this._isStale('evolution', req)) return;
+
+            const unit = { day: 'jour', week: 'semaine', month: 'mois' }[evo.granularity];
+            const hasData = evo.buckets.some(b => b.total > 0);
+            document.getElementById('evolutionChart').parentElement.classList.toggle('hidden', !hasData);
+            document.getElementById('evo-empty').classList.toggle('hidden', hasData);
+            document.getElementById('evo-sub').innerHTML = hasData
+                ? `Temps actif par ${unit} · moyenne <strong class="text-slate-200">${evo.average_formatted}</strong> par ${unit} (hors ${unit === 'semaine' ? 'semaines' : unit === 'jour' ? 'jours' : 'mois'} sans activité)` +
+                  (evo.best ? ` · record : <strong class="text-slate-200">${esc(evo.best.label)}</strong> (${evo.best.formatted})` : '')
+                : 'Temps actif par période, découpé par catégorie';
+            if (hasData) window.charts.renderEvolution('evolutionChart', evo);
+
+            const tbody = document.getElementById('evo-table');
+            const rows = evo.buckets.slice().reverse();
+            tbody.innerHTML = rows.map(b => {
+                let delta = '<span class="text-slate-500">-</span>';
+                if (b.pct_change !== null && b.pct_change !== undefined) {
+                    const cls = Math.abs(b.pct_change) < 1 ? 'text-slate-400' : (b.pct_change > 0 ? 'delta-up' : 'delta-down');
+                    delta = `<span class="${cls} font-semibold">${b.pct_change > 0 ? '▲ +' : (b.pct_change < 0 ? '▼ ' : '≈ ')}${b.pct_change}%</span>`;
+                }
+                const prod = b.productivity_score === null ? '-' : `${b.productivity_score}%`;
+                return `
+                    <tr class="border-b border-slate-700/40 hover:bg-slate-800/40 cursor-pointer ${b.total ? '' : 'opacity-50'}" data-first="${b.first_day}" data-last="${b.last_day}">
+                        <td class="px-4 py-2 text-white font-medium whitespace-nowrap">${esc(b.label)}${b.is_current ? ' <span class="text-[10px] text-primary">(en cours)</span>' : ''}</td>
+                        <td class="px-4 py-2 font-semibold text-white">${b.total ? b.formatted : '-'}</td>
+                        <td class="px-4 py-2">${delta}</td>
+                        <td class="px-4 py-2 text-slate-400">${b.active_days}</td>
+                        <td class="px-4 py-2 text-slate-300">${b.daily_average_formatted}</td>
+                        <td class="px-4 py-2 text-slate-300">${b.top_app ? `${esc(b.top_app)} <span class="text-slate-500 text-xs">${b.top_app_formatted}</span>` : '-'}</td>
+                        <td class="px-4 py-2 text-slate-300">${prod}</td>
+                    </tr>`;
+            }).join('') || '<tr><td colspan="7" class="text-center py-6 text-slate-500">Aucune donnée</td></tr>';
+            tbody.querySelectorAll('tr[data-first]').forEach(tr => {
+                tr.addEventListener('click', () => this.applyRange(tr.dataset.first, tr.dataset.last));
+            });
+        } catch (e) {
+            console.error("Evolution error:", e);
+        }
+    }
+
+    // Switch the period selector to a custom range
+    applyRange(first, last) {
+        const selector = document.getElementById('period-selector');
+        selector.value = 'custom';
+        document.getElementById('custom-start').value = first;
+        document.getElementById('custom-end').value = last;
+        const range = document.getElementById('custom-range');
+        range.classList.remove('hidden');
+        range.classList.add('flex');
+        this.applyCustomRange();
+        document.getElementById('view-analytics').scrollTop = 0;
     }
 
     // ------------------------------------------------------------------ APPLICATIONS

@@ -84,6 +84,10 @@ class Api:
         start_ts, end_ts, _, _ = self._get_period_timestamps(period)
         return db.get_all_apps_stats(start_ts, end_ts, search, category)
 
+    def get_evolution(self, period='all', granularity='auto'):
+        start_ts, end_ts, _, _ = self._get_period_timestamps(period)
+        return db.get_evolution(start_ts, end_ts, granularity)
+
     def get_app_details(self, app_name, period='today'):
         start_ts, end_ts, _, _ = self._get_period_timestamps(period)
         return db.get_app_details(app_name, start_ts, end_ts)

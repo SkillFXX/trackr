@@ -297,6 +297,41 @@
                 </div>
             </div>
 
+            <!-- Evolution over time -->
+            <div class="card">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="card-title"><i data-lucide="trending-up" class="w-4 h-4 mr-2 text-yellow-400"></i> Évolution dans le temps</h3>
+                        <p id="evo-sub" class="text-xs text-slate-400 mt-0.5">Temps actif par période, découpé par catégorie</p>
+                    </div>
+                    <div class="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg p-1 text-xs" id="evo-granularity">
+                        <button data-g="auto" class="seg-btn active">Auto</button>
+                        <button data-g="day" class="seg-btn">Jour</button>
+                        <button data-g="week" class="seg-btn">Semaine</button>
+                        <button data-g="month" class="seg-btn">Mois</button>
+                    </div>
+                </div>
+                <div class="h-72 relative w-full"><canvas id="evolutionChart"></canvas></div>
+                <p id="evo-empty" class="hidden text-sm text-slate-500 text-center py-10">Aucune activité sur cette période</p>
+                <div class="mt-5 max-h-80 overflow-y-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="text-xs uppercase bg-slate-800 text-slate-400 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2.5">Période</th>
+                                <th class="px-4 py-2.5">Temps actif</th>
+                                <th class="px-4 py-2.5">vs précédente</th>
+                                <th class="px-4 py-2.5">Jours actifs</th>
+                                <th class="px-4 py-2.5">Moy. / jour actif</th>
+                                <th class="px-4 py-2.5">App principale</th>
+                                <th class="px-4 py-2.5">Productivité</th>
+                            </tr>
+                        </thead>
+                        <tbody id="evo-table"></tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-slate-500 mt-3">Cliquez sur une ligne pour afficher toutes les statistiques de cette période.</p>
+            </div>
+
             <!-- Sessions & focus -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div class="card lg:col-span-5">
@@ -316,6 +351,7 @@
                         <div class="sub-stat"><p class="mini-label">Amplitude moy.</p><p id="adv-avg-span" class="mini-value">-</p></div>
                         <div class="sub-stat"><p class="mini-label">Plein écran</p><p id="adv-fullscreen" class="mini-value">-</p></div>
                     </div>
+                    <p id="adv-longest-block" class="text-xs text-slate-400 mb-4" title="Période continue devant l'écran, toutes applications confondues, sans inactivité de plus de quelques minutes">-</p>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Plus longues sessions</p>
                     <div id="adv-top-sessions" class="space-y-1.5"></div>
                 </div>
@@ -344,17 +380,6 @@
                     <div class="h-64 relative w-full"><canvas id="peakDaysChart"></canvas></div>
                     <div id="weekday-split-summary" class="mt-4 pt-4 border-t border-slate-700/40 flex items-center justify-between text-xs text-slate-400"></div>
                 </div>
-            </div>
-
-            <div class="card">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="card-title"><i data-lucide="trending-up" class="w-4 h-4 mr-2 text-yellow-400"></i> Évolution quotidienne par catégorie</h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Temps actif par jour, découpé par catégorie</p>
-                    </div>
-                </div>
-                <div class="h-72 relative w-full"><canvas id="categoryEvolutionChart"></canvas></div>
-                <p id="category-evolution-empty" class="hidden text-sm text-slate-500 text-center py-10">Pas encore assez de jours d'activité sur cette période</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
